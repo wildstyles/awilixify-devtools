@@ -16,3 +16,21 @@ Dependencies are intentionally not installed in this scaffold.
 npm install
 npm run dev
 ```
+
+By default, the app fetches the module graph from:
+
+```txt
+/__devtools/graph
+```
+
+During Vite development, `/__devtools` is proxied to:
+
+```txt
+http://localhost:3000
+```
+
+Override it with:
+
+```sh
+VITE_DEVTOOLS_GRAPH_URL=http://localhost:3000/__devtools/graph npm run dev
+```
