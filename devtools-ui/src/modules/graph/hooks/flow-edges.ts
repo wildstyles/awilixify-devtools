@@ -1,0 +1,136 @@
+import clsx from "clsx";
+import { MarkerType } from "@xyflow/react";
+import type { GetGraphResponse } from "@/api/model";
+import type { GraphViewMode, ModuleEdgeRole, ModuleFlowEdge } from "../types";
+import {
+	getProviderGroupColor,
+	isFocusedDependencyEdge,
+} from "./provider-group";
+
+export function toFlowEdges({
+	edges,
+	selectedModuleId,
+	viewMode,
+}: {
+	edges: GetGraphResponse["edges"];
+	selectedModuleId?: string | null;
+	viewMode: GraphViewMode;
+}): ModuleFlowEdge[] {
+	const cycleEdgeIds = detectCycleEdgeIds(
+		edges.filter((edge) => edge.type === "imports"),
+	);
+
+	return edges.map((edge) => {
+		const role = getEdgeRole({
+			edge,
+			selectedModuleId,
+			cycleEdgeIds,
+		});
+		const color =
+			viewMode === "providers" &&
+			isFocusedDependencyEdge(edge, selectedModuleId)
+				? getProviderGroupColor(edge.to)
+				: undefined;
+
+		return {
+			id: `${edge.from}:${edge.to}:${edge.type}`,
+			source: edge.from,
+			sourceHandle:
+				viewMode === "providers"
+					? getProviderGroupHandleId(edge.to)
+					: undefined,
+			target: edge.to,
+			targetHandle:
+				viewMode === "providers" ? getOwnProviderGroupHandleId() : undefined,
+			type: "moduleDependency",
+			animated: role === "cycle" || edge.type === "global",
+			markerEnd: {
+				type: MarkerType.ArrowClosed,
+				color: color ?? getEdgeColor(role),
+				width: 10,
+				height: 10,
+			},
+			data: { color, type: edge.type, role },
+			className: clsx("graph-edge", edge.type, role, {
+				"provider-colored": color,
+			}),
+		};
+	});
+}
+
+export function detectCycleEdgeIds(
+	edges: GetGraphResponse["edges"],
+): Set<string> {
+	const adjacency = new Map<string, string[]>();
+	const cycleEdgeIds = new Set<string>();
+
+	for (const edge of edges) {
+		adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to]);
+	}
+
+	for (const edge of edges) {
+		if (hasPath(edge.to, edge.from, adjacency, new Set())) {
+			cycleEdgeIds.add(`${edge.from}:${edge.to}:${edge.type}`);
+		}
+	}
+
+	return cycleEdgeIds;
+}
+
+export function getProviderGroupHandleId(moduleId: string): string {
+	return `provider-group:${moduleId}`;
+}
+
+export function getOwnProviderGroupHandleId(): string {
+	return "provider-group:own";
+}
+
+function getEdgeColor(role: ModuleEdgeRole): string {
+	switch (role) {
+		case "dependency":
+			return "var(--graph-color-dependency)";
+		case "dependent":
+			return "var(--graph-color-dependent)";
+		case "cycle":
+			return "var(--graph-color-cycle)";
+		case "global":
+			return "var(--graph-color-global)";
+		default:
+			return "var(--graph-color-muted)";
+	}
+}
+
+function getEdgeRole({
+	edge,
+	selectedModuleId,
+	cycleEdgeIds,
+}: {
+	edge: GetGraphResponse["edges"][number];
+	selectedModuleId?: string | null;
+	cycleEdgeIds: Set<string>;
+}): ModuleEdgeRole {
+	const edgeId = `${edge.from}:${edge.to}:${edge.type}`;
+
+	if (cycleEdgeIds.has(edgeId)) return "cycle";
+	if (edge.type === "global") return "global";
+	if (edge.from === selectedModuleId) return "dependency";
+	if (edge.to === selectedModuleId) return "dependent";
+
+	return "default";
+}
+
+function hasPath(
+	from: string,
+	to: string,
+	adjacency: Map<string, string[]>,
+	visited: Set<string>,
+): boolean {
+	if (from === to) return true;
+	if (visited.has(from)) return false;
+
+	visited.add(from);
+
+	return (adjacency.get(from) ?? []).some((next) =>
+		hasPath(next, to, adjacency, visited),
+	);
+}

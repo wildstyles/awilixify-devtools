@@ -1,0 +1,30 @@
+.legend {
+	position: absolute;
+	top: var(--mantine-spacing-xs);
+	left: var(--mantine-spacing-xs);
+	z-index: 4;
+	width: 240px;
+	pointer-events: auto;
+}
+
+.swatch {
+	border: 2px solid currentColor;
+	border-radius: 999px;
+	background: currentColor;
+	font-size: var(--mantine-font-size-xs);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	color: var(--mantine-color-white);
+}
+
+.small {
+	width: var(--mantine-spacing-xs);
+	height: var(--mantine-spacing-xs);
+}
+
+.medium {
+	width: var(--mantine-spacing-sm);
+	height: var(--mantine-spacing-sm);
+}
